@@ -27,7 +27,9 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = []
 
-CORE_APPS = []
+CORE_APPS = [
+    "core.pairing",
+]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + CORE_APPS
 
@@ -105,7 +107,9 @@ STATIC_DIRS = [
 ]
 
 STORAGES = {
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFileStorage"}
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
