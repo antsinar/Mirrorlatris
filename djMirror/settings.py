@@ -1,5 +1,6 @@
-from pathlib import Path
 from os import environ
+from pathlib import Path
+
 from dotenv import find_dotenv, load_dotenv
 
 env = find_dotenv(".env")
@@ -21,6 +22,7 @@ DJANGO_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
     "django.contrib.sites",
 ]
@@ -32,9 +34,6 @@ CORE_APPS = [
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + CORE_APPS
-
-if DEBUG:
-    INSTALLED_APPS.insert(0, "whitenoise.runserver_nostatic")
 
 SITE_ID = 1
 
@@ -103,6 +102,7 @@ USE_TZ = True
 STATIC_URL = "staticfiles/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_DIRS = [
+    BASE_DIR / "assets",
     BASE_DIR / "staticfiles_src",
 ]
 
@@ -113,3 +113,5 @@ STORAGES = {
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+ALLOWED_HOSTS = ["*"]
