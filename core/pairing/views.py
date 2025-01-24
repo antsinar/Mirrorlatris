@@ -1,8 +1,12 @@
 import orjson
 from asgiref.sync import sync_to_async
 from django.apps import apps
-from django.http import (HttpResponse, HttpResponseBadRequest,
-                         HttpResponseNotAllowed, HttpResponseNotFound)
+from django.http import (
+    HttpResponse,
+    HttpResponseBadRequest,
+    HttpResponseNotAllowed,
+    HttpResponseNotFound,
+)
 from django.shortcuts import render
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -73,10 +77,9 @@ async def pairing_refresh(
 
 
 async def get_remaining_ttl(request, token: str) -> HttpResponse:
+    ttl_task_queue: ITaskQueue[Pair] = apps.get_app_config("pairing").ttl_task_queue
     try:
-        remaining_ttl = apps.get_app_config("pairing").ttl_task_queue.remaining_tasks[
-            token
-        ]
+        remaining_ttl = ttl_task_queue.get_task_state(token).remaining_ttl
         return HttpResponse(
             content=Pair(token=token, ttl=remaining_ttl).model_dump_json(),
             content_type="application/json",
