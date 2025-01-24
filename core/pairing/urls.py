@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import (DeviceToggleView, PairView, get_remaining_ttl,
+from .views import (PairView, device_toggle, get_remaining_ttl,
                     pairing_complete, pairing_initialize, pairing_refresh)
 
 jsonResponsePatterns = [
@@ -8,7 +8,7 @@ jsonResponsePatterns = [
     path("complete/", pairing_complete, name="pairing_complete"),
     path("refresh/", pairing_refresh, name="pairing_refresh"),
     path("remaining/<str:token>/", get_remaining_ttl, name="pairing_remaining"),
-    path("<str:deviceId>/toggle/", DeviceToggleView.as_view(), name="device_toggle"),
+    path("device/toggle/", device_toggle, name="device_toggle"),
 ]
 
 vuePatterns = [

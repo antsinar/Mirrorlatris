@@ -6,6 +6,10 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field, PositiveInt
 
 
+class DeviceId(BaseModel):
+    deviceId: UUID
+
+
 class Device(BaseModel):
     deviceId: UUID = Field(default_factory=uuid4)
     available: bool = Field(default=False)

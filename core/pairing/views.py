@@ -1,19 +1,14 @@
 import orjson
 from asgiref.sync import sync_to_async
 from django.apps import apps
-from django.http import (
-    HttpResponse,
-    HttpResponseBadRequest,
-    HttpResponseNotAllowed,
-    HttpResponseNotFound,
-)
+from django.http import (HttpResponse, HttpResponseBadRequest,
+                         HttpResponseNotAllowed, HttpResponseNotFound)
 from django.shortcuts import render
-from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
 from pydantic import ValidationError
 
-from .schema import Device, Pair, PairComplete, PairCtx, PairInner
+from .schema import Device, DeviceId, Pair, PairComplete, PairCtx, PairInner
 from .tasks import ITaskQueue
 
 
@@ -88,6 +83,24 @@ async def get_remaining_ttl(request, token: str) -> HttpResponse:
         return HttpResponseNotFound(content="Pairing token not found")
 
 
+async def device_toggle(
+    request,
+) -> HttpResponse | HttpResponseNotAllowed | HttpResponseBadRequest:
+    if request.method != "PUT":
+        return HttpResponseNotAllowed(permitted_methods=["PUT"])
+    try:
+        deviceId = DeviceId(**orjson.loads(request.data))
+    except ValidationError as ve:
+        return HttpResponseBadRequest(
+            content=ve.json(include_input=False, include_url=False)
+        )
+    except orjson.JSONDecodeError as je:
+        return HttpResponseBadRequest(content=f"Bad JSON formatted data; {je.msg}")
+    # TODO: Match device with a pairing session
+    # TODO: Remove device from any active pairing session
+    return HttpResponseBadRequest(content="Not Implemented")
+
+
 class PairView(TemplateView):
     template_name = "pairing/index.html"
 
@@ -98,13 +111,3 @@ class PairView(TemplateView):
     async def get(self, request, *args, **kwargs):
         ctx = await self.get_context_data(**kwargs)
         return await sync_to_async(render)(request, self.template_name, context=ctx)
-
-
-class DeviceToggleView(View):
-    http_method_names = ["options", "PUT"]
-
-    async def options(self, request, *args, **kwargs):
-        return super().options(request, *args, **kwargs)
-
-    async def put(self, request, *args, **kwargs):
-        return super().put(request, *args, **kwargs)

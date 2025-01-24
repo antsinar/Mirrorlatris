@@ -1,10 +1,10 @@
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from pydantic import BaseModel
 from datetime import datetime, timedelta
-from functools import partial
 from typing import Dict, Protocol
+
+from pydantic import BaseModel
 
 from .schema import Pair
 
