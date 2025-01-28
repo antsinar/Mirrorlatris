@@ -1,6 +1,12 @@
-{% extends "base.html" %}
-
+{% extends "base.html" %} 
+{% load static %}
+{% block extra_css %}
+<link rel="stylesheet" crossorigin href='{% static css_file %}'>
+{% endblock extra_css %} 
 {% block content %}
-<h1>Pairing Homepage</h1>
-<div id="app"></div>
-{% endblock content %}
+<h1>Vue Pairing page</h1>
+<div id="pairingApp"></div>
+{% endblock content %} 
+{% block extra_js %}
+<script type="module" crossorigin src='{% static js_file %}'></script>
+{% endblock extra_js %}

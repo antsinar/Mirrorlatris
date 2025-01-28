@@ -3,4 +3,4 @@
 __pycache__/
 *.in
 *.sqlite3
-staticfiles_src/
+staticfiles/

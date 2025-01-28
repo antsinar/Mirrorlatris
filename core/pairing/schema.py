@@ -2,8 +2,22 @@ import secrets
 from functools import partial
 from typing import Dict, List
 from uuid import UUID, uuid4
-
+from pathlib import Path
+import orjson
 from pydantic import BaseModel, Field, PositiveInt
+from django.conf import settings
+
+
+def get_static_manifest_contents(
+    path: Path = settings.STATIC_ROOT / "manifest.json",
+) -> dict:
+    try:
+        return orjson.loads(path.read_text())
+    except orjson.JSONDecodeError:
+        return dict()
+
+
+static_file_info = get_static_manifest_contents()
 
 
 class DeviceId(BaseModel):
@@ -46,3 +60,9 @@ class Mirror(BaseModel):
 
 class PairCtx(BaseModel):
     page_title: str = Field(default_factory=str)
+    js_file: str = Field(
+        default_factory=lambda x: static_file_info["src/pairing/main.ts"]["file"]
+    )
+    css_file: str = Field(
+        default_factory=lambda x: static_file_info["src/pairing/main.ts"]["css"][0]
+    )

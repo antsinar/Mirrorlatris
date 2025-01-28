@@ -1,8 +1,12 @@
 import orjson
 from asgiref.sync import sync_to_async
 from django.apps import apps
-from django.http import (HttpResponse, HttpResponseBadRequest,
-                         HttpResponseNotAllowed, HttpResponseNotFound)
+from django.http import (
+    HttpResponse,
+    HttpResponseBadRequest,
+    HttpResponseNotAllowed,
+    HttpResponseNotFound,
+)
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
@@ -14,18 +18,22 @@ from .tasks import ITaskQueue
 
 @csrf_exempt
 async def pairing_initialize(
-    request,
+    request, permitted_methods=["OPTIONS", "POST"]
 ) -> HttpResponse | HttpResponseBadRequest | HttpResponseNotAllowed:
-    if request.method != "POST":
-        return HttpResponseNotAllowed(permitted_methods=["POST"])
+    if request.method not in permitted_methods:
+        return HttpResponseNotAllowed(permitted_methods=permitted_methods)
     try:
         device = Device(**orjson.loads(request.body))
     except ValidationError as ve:
         return HttpResponseBadRequest(
-            content=ve.json(include_input=False, include_url=False)
+            content=ve.json(include_input=False, include_url=False),
+            content_type="application/json",
         )
     except orjson.JSONDecodeError as je:
-        return HttpResponseBadRequest(content=f"Bad JSON formatted data; {je.msg}")
+        return HttpResponseBadRequest(
+            content=orjson.dumps({"reason": je.msg}),
+            content_type="application/json",
+        )
     # TODO: Check if the device is already in another active pairing session
     pair = Pair()
     pairInner = PairInner(pair=pair, nodes=[device])
@@ -40,10 +48,10 @@ async def pairing_initialize(
 
 @csrf_exempt
 async def pairing_complete(
-    request,
+    request, permitted_methods=["OPTIONS", "POST"]
 ) -> HttpResponse | HttpResponseBadRequest | HttpResponseNotAllowed:
-    if request.method != "POST":
-        return HttpResponseNotAllowed(permitted_methods=["POST"])
+    if request.method not in permitted_methods:
+        return HttpResponseNotAllowed(permitted_methods=permitted_methods)
     try:
         pair_complete = PairComplete(**orjson.loads(request.data))
     except ValidationError as ve:
@@ -51,7 +59,10 @@ async def pairing_complete(
             content=ve.json(include_input=False, include_url=False)
         )
     except orjson.JSONDecodeError as je:
-        return HttpResponseBadRequest(content=f"Bad JSON formatted data; {je.msg}")
+        return HttpResponseBadRequest(
+            content=orjson.dumps({"reason": je.msg}),
+            content_type="application/json",
+        )
 
     # TODO: Get pair matching the given id
     if not pair_complete["pairToken"]:
@@ -71,7 +82,16 @@ async def pairing_refresh(
     return HttpResponseBadRequest(content="Not Implemented")
 
 
-async def get_remaining_ttl(request, token: str) -> HttpResponse:
+async def get_remaining_ttl(request) -> HttpResponse:
+    if request.method not in ["OPTIONS", "GET"]:
+        return HttpResponseNotAllowed(permitted_methods=["OPTIONS", "GET"])
+    try:
+        token = request.GET.get("token")
+    except Exception:
+        return HttpResponseBadRequest(
+            content=orjson.dumps({"reason": "No `token` query parameter found"}),
+            content_type="application/json",
+        )
     ttl_task_queue: ITaskQueue[Pair] = apps.get_app_config("pairing").ttl_task_queue
     try:
         remaining_ttl = ttl_task_queue.get_task_state(token).remaining_ttl
@@ -80,14 +100,17 @@ async def get_remaining_ttl(request, token: str) -> HttpResponse:
             content_type="application/json",
         )
     except KeyError:
-        return HttpResponseNotFound(content="Pairing token not found")
+        return HttpResponseNotFound(
+            content=orjson.dumps({"reason": "Pairing token not found"}),
+            content_type="application/json",
+        )
 
 
 async def device_toggle(
-    request,
+    request, permitted_methods=["OPTIONS", "PUT"]
 ) -> HttpResponse | HttpResponseNotAllowed | HttpResponseBadRequest:
-    if request.method != "PUT":
-        return HttpResponseNotAllowed(permitted_methods=["PUT"])
+    if request.method not in permitted_methods:
+        return HttpResponseNotAllowed(permitted_methods=permitted_methods)
     try:
         deviceId = DeviceId(**orjson.loads(request.data))
     except ValidationError as ve:
@@ -95,10 +118,16 @@ async def device_toggle(
             content=ve.json(include_input=False, include_url=False)
         )
     except orjson.JSONDecodeError as je:
-        return HttpResponseBadRequest(content=f"Bad JSON formatted data; {je.msg}")
+        return HttpResponseBadRequest(
+            content=orjson.dumps({"reason": je.msg}),
+            content_type="application/json",
+        )
     # TODO: Match device with a pairing session
     # TODO: Remove device from any active pairing session
-    return HttpResponseBadRequest(content="Not Implemented")
+    return HttpResponseBadRequest(
+        content=orjson.dumps({"reason": "Not implemented"}),
+        content_type="application/json",
+    )
 
 
 class PairView(TemplateView):

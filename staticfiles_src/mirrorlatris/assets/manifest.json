@@ -1,0 +1,11 @@
+{
+  "src/pairing/main.ts": {
+    "file": "assets/pairingApp-DV8e4sXN.js",
+    "name": "pairingApp",
+    "src": "src/pairing/main.ts",
+    "isEntry": true,
+    "css": [
+      "assets/pairingApp-DpHsW6uP.css"
+    ]
+  }
+}
