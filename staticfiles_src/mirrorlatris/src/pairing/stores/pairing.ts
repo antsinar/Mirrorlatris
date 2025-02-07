@@ -13,7 +13,7 @@ export const usePairingStore = defineStore('pairing', () => {
     isAvailableForPairing: false,
     currentPairing: null,
     deviceId: localStorage.getItem(DEVICE_ID_KEY) || generateDeviceId(),
-    pairingTimer: -1,
+    pairingTimer: 1000,
   })
 
   const isPaired = computed(() => {
@@ -34,9 +34,8 @@ export const usePairingStore = defineStore('pairing', () => {
     try {
       let headers = new Headers()
       headers.append('Content-Type', 'application/json')
-      await getCookie('csrftoken').then((token: string | null) => {
-        token ? headers.append('X-CSRFToken', token) : undefined
-      })
+      const csrfToken = getCookie('csrftoken')
+      csrfToken ? headers.append('X-CSRFToken', csrfToken) : headers.append('X-CSRFToken', '')
 
       const response = await fetch(`${BASE_URL}/pairing/initialize/`, {
         method: 'POST',
@@ -52,19 +51,17 @@ export const usePairingStore = defineStore('pairing', () => {
       const pairingObject: PairingObject = await response.json()
       state.value.currentPairing = pairingObject
       localStorage.setItem(PAIR_TOKEN_KEY, pairingObject.token)
-      startPairingTimer(pairingObject.ttl)
     } catch (error: any) {
       console.error(error)
     }
   }
 
-  async function completePairing(): Promise<void> {
+  async function completePairing(token: string): Promise<void> {
     try {
       let headers = new Headers()
       headers.append('Content-Type', 'application/json')
-      await getCookie('csrftoken').then((token: string | null) => {
-        token ? headers.append('X-CSRFToken', token) : undefined
-      })
+      const csrfToken = getCookie('csrftoken')
+      csrfToken ? headers.append('X-CSRFToken', csrfToken) : headers.append('X-CSRFToken', '')
 
       const device = {
         deviceId: state.value.deviceId,
@@ -72,7 +69,7 @@ export const usePairingStore = defineStore('pairing', () => {
       } as Device
 
       const pairingComplete = {
-        token: localStorage.getItem(PAIR_TOKEN_KEY) || null,
+        token: token,
         device: device,
       } as PairingComplete
 
@@ -84,9 +81,9 @@ export const usePairingStore = defineStore('pairing', () => {
       if (!response.ok) {
         throw new Error(`Pairing Failed ${response.statusText}`)
       }
-      const pairingObject: PairingObject = await response.json()
+      const pairingObject = await response.json() as PairingObject
       state.value.currentPairing = pairingObject
-      startPairingTimer(pairingObject.ttl)
+      localStorage.setItem(PAIR_TOKEN_KEY, token)
     } catch (error: any) {
       console.error(error)
     }
@@ -99,9 +96,8 @@ export const usePairingStore = defineStore('pairing', () => {
     try {
       let headers = new Headers()
       headers.append('Content-Type', 'application/json')
-      await getCookie('csrftoken').then((token: string | null) => {
-        token ? headers.append('X-CSRFToken', token) : undefined
-      })
+      const csrfToken = getCookie('csrftoken')
+      csrfToken ? headers.append('X-CSRFToken', csrfToken) : headers.append('X-CSRFToken', '')
 
       const response = await fetch(`${BASE_URL}/pairing/refresh/`, {
         method: 'POST',
@@ -118,9 +114,8 @@ export const usePairingStore = defineStore('pairing', () => {
 
       const pairingObject: PairingObject = await response.json()
       state.value.currentPairing = pairingObject
-      startPairingTimer(pairingObject.ttl)
     } catch (error) {
-      console.error('Pairing refresh failed:', error)
+      console.error(`Pairing refresh failed: ${error}`)
       state.value.currentPairing = null
     }
   }
@@ -149,13 +144,10 @@ export const usePairingStore = defineStore('pairing', () => {
     state.value.isAvailableForPairing = available
     if (!available && state.value.currentPairing) {
       state.value.currentPairing = null
-      if (state.value.pairingTimer) {
-        clearTimeout(state.value.pairingTimer)
-      }
     }
   }
 
-  async function getCookie(name: string): Promise<string | null> {
+  function getCookie(name: string): string | null {
     let cookieValue: string | null = null
     if (document.cookie && document.cookie !== '') {
       const cookies = document.cookie.split(';')
