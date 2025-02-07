@@ -1,9 +1,13 @@
 import orjson
 from asgiref.sync import sync_to_async
 from django.apps import apps
-from django.http import (HttpResponse, HttpResponseBadRequest,
-                         HttpResponseForbidden, HttpResponseNotAllowed,
-                         HttpResponseNotFound)
+from django.http import (
+    HttpResponse,
+    HttpResponseBadRequest,
+    HttpResponseForbidden,
+    HttpResponseNotAllowed,
+    HttpResponseNotFound,
+)
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
@@ -72,7 +76,8 @@ def pairing_complete(
             content=orjson.dumps({"reason": je.msg}),
             content_type="application/json",
         )
-    if pair_complete.device.deviceId in cache_handler.deviceIndex.keys():
+    deviceId = str(pair_complete.device.deviceId)
+    if deviceId in cache_handler.deviceIndex.keys():
         return HttpResponse(
             content=orjson.dumps(
                 {"reason": "Device already in another pairing session"}
@@ -94,7 +99,7 @@ def pairing_complete(
             status=409,
             content_type="application/json",
         )
-    replacement.nodes.append(pair_complete.device.deviceId)
+    replacement.nodes.append(pair_complete.device)
     replacement.openToJoin = False
     cache_handler.update_pairing_devices(pair_complete.token, replacement.nodes)
     return HttpResponse(
@@ -122,14 +127,7 @@ async def pairing_refresh(
             content=orjson.dumps({"reason": je.msg}),
             content_type="application/json",
         )
-    if pair_complete.device.deviceId in cache_handler.deviceIndex.keys():
-        return HttpResponse(
-            content=orjson.dumps(
-                {"reason": "Device already in another pairing session"}
-            ),
-            status=409,
-            content_type="application/json",
-        )
+    deviceId = str(pair_complete.device.deviceId)
 
     if pair_complete.token not in cache_handler.pairingIndex:
         return HttpResponse(
@@ -138,17 +136,17 @@ async def pairing_refresh(
             content_type="application/json",
         )
 
-    if (
-        pair_complete.token
-        not in cache_handler.deviceIndex[pair_complete.device.deviceId]
-    ):
+    if pair_complete.token not in cache_handler.deviceIndex[deviceId]:
         return HttpResponseForbidden(
             content=orjson.dumps({"reason": "Device not part of pairing"}),
             content_type="application/json",
         )
 
     replacement = Pair()
-    cache_handler.transfer_pairing(pair_complete.token, **replacement.model_dump())
+    await ttl_task_queue.add_task(replacement)
+    cache_handler.transfer_pairing(
+        pair_complete.token, replacement.token, replacement.ttl
+    )
 
     return HttpResponse(
         content=replacement.model_dump_json(),
@@ -196,8 +194,8 @@ def device_toggle(
             content=orjson.dumps({"reason": je.msg}),
             content_type="application/json",
         )
-    deviceId = deviceId.deviceId
-    if deviceId not in cache_handler.deviceIndex.keys:
+    deviceId = str(deviceId.deviceId)
+    if deviceId not in cache_handler.deviceIndex.keys():
         return HttpResponseNotFound(
             content=orjson.dumps({"reason": "Device id not found"}),
             content_type="application/json",

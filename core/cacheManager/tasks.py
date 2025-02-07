@@ -100,6 +100,10 @@ class CacheTaskHandler:
 
     def set_pairing(self, pair: PairInner) -> None:
         self.add_pairing(pair.token)
+        [
+            self.add_device(str(node.deviceId), pairToken=pair.token)
+            for node in pair.nodes
+        ]
         self.task_client.set(
             pair.token,
             pair.model_dump_json(),
@@ -126,6 +130,11 @@ class CacheTaskHandler:
         if not pair_obj.openToJoin:
             logger.info("Pairing not open to add new devices")
             return
+        [
+            self.add_device(str(device.deviceId), pairToken)
+            for device in devices
+            if str(device.deviceId) not in self.deviceIndex
+        ]
         pair_obj.nodes = devices
         self.task_client.replace(
             pairToken,
@@ -149,6 +158,11 @@ class CacheTaskHandler:
         if not self._check_pairToken_exists(pairToken):
             logger.error("Token not in pairing index")
             return
+        pair_obj = PairInner(**orjson.loads(self.task_client.get(pairToken)))
+        [
+            self.deviceIndex[str(node.deviceId)].remove(pairToken)
+            for node in pair_obj.nodes
+        ]
         self.pairingIndex.remove(pairToken)
         self.task_client.replace("pairingIndex", orjson.dumps(self.pairingIndex))
 
@@ -161,6 +175,10 @@ class CacheTaskHandler:
         replacement.token = newPairToken
         replacement.ttl = ttl
         self.task_client.set(newPairToken, replacement.model_dump_json())
+        [
+            self.add_device(str(device.deviceId), newPairToken)
+            for device in replacement.nodes
+        ]
         self.cancel_pairing(oldPairToken)
 
     def remove_device(self, deviceId: str) -> None:
@@ -169,7 +187,7 @@ class CacheTaskHandler:
             return
         try:
             pair_objects = [
-                PairInner(**orjson.loads(obj))
+                PairInner(**orjson.loads(self.task_client.get(obj)))
                 for obj in self.task_client.get_many(self.deviceIndex[deviceId])
             ]
             pair_json_objects = {
@@ -177,10 +195,10 @@ class CacheTaskHandler:
                 for pair in pair_objects
                 for node in pair.nodes
                 if self._check_pairToken_exists(pair.token)
-                and node.deviceId != deviceId
+                and str(node.deviceId) != deviceId
             }
             self.task_client.set_many(pair_json_objects)
-            del self.deviceIndex[deviceId]
+            del self.deviceIndex[str(deviceId)]
             self.task_client.replace("deviceIndex", orjson.dumps(self.deviceIndex))
         except KeyError as ke:
             logger.error(ke)
