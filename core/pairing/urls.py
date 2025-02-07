@@ -1,13 +1,7 @@
 from django.urls import path
 
-from .views import (
-    PairView,
-    device_toggle,
-    get_remaining_ttl,
-    pairing_complete,
-    pairing_initialize,
-    pairing_refresh,
-)
+from .views import (PairView, device_toggle, get_remaining_ttl,
+                    pairing_complete, pairing_initialize, pairing_refresh)
 
 jsonResponsePatterns = [
     path("initialize/", pairing_initialize, name="pairing_initialize"),
@@ -18,7 +12,7 @@ jsonResponsePatterns = [
 ]
 
 vuePatterns = [
-    path("", PairView.as_view(), name="pairing_index"),
+    path("", PairView.as_view(), name="pairing_template_index"),
 ]
 
 urlpatterns = jsonResponsePatterns + vuePatterns

@@ -1,11 +1,12 @@
 import secrets
 from functools import partial
+from pathlib import Path
 from typing import Dict, List
 from uuid import UUID, uuid4
-from pathlib import Path
+
 import orjson
-from pydantic import BaseModel, Field, PositiveInt
 from django.conf import settings
+from pydantic import BaseModel, Field, PositiveInt
 
 
 def get_static_manifest_contents(
@@ -34,14 +35,14 @@ class Pair(BaseModel):
     ttl: PositiveInt = Field(default=600)
 
 
-class PairComplete(BaseModel):
-    pairToken: str
-    device: Device
-
-
-class PairInner(BaseModel):
-    pair: Pair
+class PairInner(Pair):
+    openToJoin: bool = Field(default=True)
     nodes: List[Device] = Field(default_factory=list)
+
+
+class PairComplete(BaseModel):
+    token: str
+    device: Device
 
 
 class PlaybackInfo(BaseModel):

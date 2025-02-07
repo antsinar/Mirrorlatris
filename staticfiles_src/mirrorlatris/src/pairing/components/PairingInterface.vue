@@ -8,15 +8,17 @@ const qrCodeUrl = ref<string>('')
 const qrCodeImage = ref<string>('')
 const isLoading = ref<boolean>(false)
 const remainingTTL = ref<number>(1000)
+const tokenExists = ref<boolean>(window.location.search.includes('?token'))
 
 const BASE_URL = 'http://127.0.0.1:8000'
+
 
 async function startPairing(): Promise<void> {
   try {
     isLoading.value = true
     await pairingStore.initiatePairing()
     const currentPairing = pairingStore.state.currentPairing
-    qrCodeUrl.value = `${BASE_URL}/pair?token=${currentPairing ? currentPairing.token : ''}`
+    qrCodeUrl.value = `${BASE_URL}/pairing/?token=${currentPairing ? currentPairing.token : ''}`
     qrCodeImage.value = await QRCode.toDataURL(qrCodeUrl.value)
   } catch (error) {
     console.error(error)
@@ -34,6 +36,18 @@ async function startPairing(): Promise<void> {
   }
 }
 
+async function joinPairing(event: Event): Promise<void> {
+  try{
+    event.preventDefault()
+    if (BASE_URL.includes(window.location.host)) {
+      await pairingStore.completePairing(window.location.search.split("=")[1])
+    }
+  }
+  catch (err) {
+    console.error(err)
+  }
+}
+
 function handleAvailabilityToggle(event: Event): void {
   const target = event.target as HTMLInputElement
   pairingStore.setAvailableForPairing(target.checked)
@@ -46,28 +60,51 @@ onUnmounted(() => {
 
 <template>
   <div class="pairingInterface">
-    <div class="pairingToggle">
-      <label for="pairingToggleSwitch">Available for pairing</label>
-      <input
-        type="checkbox"
-        v-model="pairingStore.state.isAvailableForPairing"
-        @change="handleAvailabilityToggle"
-        name="pairingToggleSwitch"
-        id="pairingToggleSwitch"
-      />
-    </div>
-    <div v-if="pairingStore.state.isAvailableForPairing" class="pairingActions">
-      <button v-if="!pairingStore.isPaired" @click="startPairing" :disabled="isLoading">
-        StartPairing
-      </button>
-      <div v-if="qrCodeImage" class="qrCode">
-        <img :src="qrCodeImage" alt="Pairing QR Code" />
-        <p>Scan this QR code with another device to complete pairing</p>
-        <p>Or visit: {{ qrCodeUrl }}</p>
+    <div v-if="tokenExists" class="pairingActions">
+      <div class="pairingToggle">
+        <label for="pairingToggleSwitch">Available for pairing</label>
+        <input
+          type="checkbox"
+          v-model="pairingStore.state.isAvailableForPairing"
+          @change="handleAvailabilityToggle"
+          name="pairingToggleSwitch"
+          id="pairingToggleSwitch"
+        />
       </div>
-      <div v-if="pairingStore.isPaired" class="pairingStatus">
-        <h1>Pair Initialized successfully</h1>
-        <p>Pairing active for {{ remainingTTL }}&nbsp;seconds</p>
+      <div v-if="pairingStore.state.isAvailableForPairing" class="pairingActions">
+        <button v-if="!pairingStore.isPaired" @click="joinPairing">
+          Join
+        </button>
+      <div v-if="pairingStore.state.currentPairing">
+        <h3>Success</h3>
+        <p>{{pairingStore.state.currentPairing.token}}</p>
+      </div>
+      </div>
+    </div>
+    <div v-else>
+      <div class="pairingToggle">
+        <label for="pairingToggleSwitch">Available for pairing</label>
+        <input
+          type="checkbox"
+          v-model="pairingStore.state.isAvailableForPairing"
+          @change="handleAvailabilityToggle"
+          name="pairingToggleSwitch"
+          id="pairingToggleSwitch"
+        />
+      </div>
+      <div v-if="pairingStore.state.isAvailableForPairing" class="pairingActions">
+        <button v-if="!pairingStore.isPaired" @click="startPairing" :disabled="isLoading">
+          StartPairing
+        </button>
+        <div v-if="qrCodeImage" class="qrCode">
+          <img :src="qrCodeImage" alt="Pairing QR Code" />
+          <p>Scan this QR code with another device to complete pairing</p>
+          <p>Or visit: {{ qrCodeUrl }}</p>
+        </div>
+        <div v-if="pairingStore.isPaired" class="pairingStatus">
+          <h1>Pair Initialized successfully</h1>
+          <p>Pairing active for {{ remainingTTL }}&nbsp;seconds</p>
+        </div>
       </div>
     </div>
   </div>
