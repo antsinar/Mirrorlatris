@@ -12,7 +12,6 @@ const tokenExists = ref<boolean>(window.location.search.includes('?token'))
 
 const BASE_URL = 'http://127.0.0.1:8000'
 
-
 async function startPairing(): Promise<void> {
   try {
     isLoading.value = true
@@ -30,27 +29,41 @@ async function startPairing(): Promise<void> {
           ? await pairingStore.getRemainingTTL()
           : remainingTTL.value - 1
     }, 1000)
-    if (remainingTTL.value === -1) {
-      clearInterval(intervalTaskId)
-    }
   }
 }
 
 async function joinPairing(event: Event): Promise<void> {
-  try{
+  try {
     event.preventDefault()
     if (BASE_URL.includes(window.location.host)) {
-      await pairingStore.completePairing(window.location.search.split("=")[1])
+      await pairingStore.completePairing(window.location.search.split('=')[1])
     }
-  }
-  catch (err) {
+  } catch (err) {
     console.error(err)
   }
+}
+
+async function refreshPairing(): Promise<void> {
+  await pairingStore.refreshPairing()
+  const currentPairing = pairingStore.state.currentPairing
+  qrCodeUrl.value = `${BASE_URL}/pairing/?token=${currentPairing ? currentPairing.token : ''}`
+  qrCodeImage.value = await QRCode.toDataURL(qrCodeUrl.value)
+  await new Promise(r => setTimeout(r, 1000));
+  remainingTTL.value = await pairingStore.getRemainingTTL()
 }
 
 function handleAvailabilityToggle(event: Event): void {
   const target = event.target as HTMLInputElement
   pairingStore.setAvailableForPairing(target.checked)
+}
+
+async () => {
+  while(1){
+    if (remainingTTL.value < 2) {
+      await refreshPairing()
+    }
+    await new Promise<void>(r => setTimeout(r, 1000))
+  }
 }
 
 onUnmounted(() => {
@@ -72,13 +85,12 @@ onUnmounted(() => {
         />
       </div>
       <div v-if="pairingStore.state.isAvailableForPairing" class="pairingActions">
-        <button v-if="!pairingStore.isPaired" @click="joinPairing">
-          Join
-        </button>
-      <div v-if="pairingStore.state.currentPairing">
-        <h3>Success</h3>
-        <p>{{pairingStore.state.currentPairing.token}}</p>
-      </div>
+        <button v-if="!pairingStore.isPaired" @click="joinPairing">Join</button>
+        <div v-if="pairingStore.state.currentPairing">
+          <h3>Success</h3>
+          <p>{{ pairingStore.state.currentPairing.token }}</p>
+          <button @click="refreshPairing">Refresh</button>
+        </div>
       </div>
     </div>
     <div v-else>
@@ -104,6 +116,7 @@ onUnmounted(() => {
         <div v-if="pairingStore.isPaired" class="pairingStatus">
           <h1>Pair Initialized successfully</h1>
           <p>Pairing active for {{ remainingTTL }}&nbsp;seconds</p>
+          <button @click="refreshPairing">Refresh</button>
         </div>
       </div>
     </div>

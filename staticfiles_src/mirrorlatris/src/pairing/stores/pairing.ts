@@ -81,7 +81,7 @@ export const usePairingStore = defineStore('pairing', () => {
       if (!response.ok) {
         throw new Error(`Pairing Failed ${response.statusText}`)
       }
-      const pairingObject = await response.json() as PairingObject
+      const pairingObject = (await response.json()) as PairingObject
       state.value.currentPairing = pairingObject
       localStorage.setItem(PAIR_TOKEN_KEY, token)
     } catch (error: any) {
@@ -93,6 +93,15 @@ export const usePairingStore = defineStore('pairing', () => {
     if (!state.value.currentPairing) {
       return
     }
+    const device = {
+      deviceId: state.value.deviceId,
+      available: true,
+    } as Device
+
+    const pairingComplete = {
+      token: state.value.currentPairing.token,
+      device: device,
+    } as PairingComplete
     try {
       let headers = new Headers()
       headers.append('Content-Type', 'application/json')
@@ -102,10 +111,7 @@ export const usePairingStore = defineStore('pairing', () => {
       const response = await fetch(`${BASE_URL}/pairing/refresh/`, {
         method: 'POST',
         headers: headers,
-        body: JSON.stringify({
-          token: state.value.currentPairing.token,
-          deviceId: state.value.deviceId,
-        }),
+        body: JSON.stringify(pairingComplete),
       })
 
       if (!response.ok) {
@@ -114,6 +120,7 @@ export const usePairingStore = defineStore('pairing', () => {
 
       const pairingObject: PairingObject = await response.json()
       state.value.currentPairing = pairingObject
+      localStorage.setItem(PAIR_TOKEN_KEY, pairingObject.token)
     } catch (error) {
       console.error(`Pairing refresh failed: ${error}`)
       state.value.currentPairing = null
@@ -124,20 +131,6 @@ export const usePairingStore = defineStore('pairing', () => {
     const deviceId = uuidv4().toString()
     localStorage.setItem(DEVICE_ID_KEY, deviceId)
     return deviceId
-  }
-
-  function startPairingTimer(ttl: number): void {
-    if (state.value.pairingTimer) {
-      clearTimeout(state.value.pairingTimer)
-    }
-
-    state.value.pairingTimer = window.setTimeout(() => {
-      if (state.value.isAvailableForPairing) {
-        refreshPairing()
-      } else {
-        state.value.currentPairing = null
-      }
-    }, ttl * 1000)
   }
 
   function setAvailableForPairing(available: boolean): void {
