@@ -2,9 +2,9 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { v4 as uuidv4 } from 'uuid'
 
+import { BASE_URL } from "@/pairing/utils"
 import type { PairingState, PairingObject, PairingComplete, Device } from '@/pairing/types.ts'
 
-const BASE_URL = 'http://127.0.0.1:8000'
 const DEVICE_ID_KEY = 'deviceId'
 const PAIR_TOKEN_KEY = 'pairtoken'
 
